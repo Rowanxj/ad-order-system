@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.adorder.mapper.MaterialTaskMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO material_task (order_id, material_type, name, spec, quantity,
+                                   usage_desc, reference_note, deadline, status, assignee_id)
+        VALUES (#{orderId}, #{materialType}, #{name}, #{spec}, #{quantity},
+                #{usageDesc}, #{referenceNote}, #{deadline}, #{status}, #{assigneeId})
+    </insert>
+
+    <!-- 显式列名：字段变更时能立刻发现，避免 SELECT * 静默失配 -->
+    <select id="selectById" resultType="com.course.adorder.entity.MaterialTask">
+        SELECT id, order_id, material_type, name, spec, quantity,
+               usage_desc, reference_note, deadline, status, assignee_id, assigned_at,
+               created_at, updated_at
+        FROM material_task WHERE id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultType="map">
+        SELECT t.id            AS `id`,
+               t.order_id      AS `orderId`,
+               t.material_type AS `materialType`,
+               t.name          AS `name`,
+               t.spec          AS `spec`,
+               t.quantity      AS `quantity`,
+               t.usage_desc    AS `usageDesc`,
+               t.reference_note AS `referenceNote`,
+               t.deadline      AS `deadline`,
+               t.status        AS `status`,
+               t.assignee_id   AS `assigneeId`,
+               t.assigned_at   AS `assignedAt`,
+               t.created_at    AS `createdAt`,
+               u.real_name     AS `assigneeName`,
+               (SELECT COUNT(*) FROM design_version v WHERE v.task_id = t.id) AS `versionCount`
+        FROM material_task t
+        LEFT JOIN sys_user u ON u.id = t.assignee_id
+        WHERE t.order_id = #{orderId}
+        ORDER BY t.id
+    </select>
+
+    <!-- 设计人员工作台：我的任务（关联订单与客户信息） -->
+    <select id="selectMyTasks" resultType="map">
+        SELECT t.id            AS `id`,
+               t.order_id      AS `orderId`,
+               o.order_no      AS `orderNo`,
+               o.title         AS `orderTitle`,
+               o.status        AS `orderStatus`,
+               c.name          AS `customerName`,
+               t.material_type AS `materialType`,
+               t.name          AS `name`,
+               t.spec          AS `spec`,
+               t.quantity      AS `quantity`,
+               t.deadline      AS `deadline`,
+               t.status        AS `status`,
+               t.created_at    AS `createdAt`,
+               (SELECT COUNT(*) FROM revision_feedback f WHERE f.task_id = t.id) AS `feedbackCount`,
+               (SELECT f.content FROM revision_feedback f WHERE f.task_id = t.id
+                 ORDER BY f.round_no DESC LIMIT 1) AS `latestFeedback`
+        FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        JOIN customer c ON c.id = o.customer_id
+        WHERE t.assignee_id = #{assigneeId}
+        <if test="status != null and status != ''">
+            AND t.status = #{status}
+        </if>
+        ORDER BY FIELD(t.status, 'REVISION', 'DESIGNING', 'PENDING_CONFIRM', 'PENDING', 'CONFIRMED'), t.deadline, t.id
+    </select>
+
+    <select id="countUnconfirmedByOrderId" resultType="int">
+        SELECT COUNT(*) FROM material_task
+        WHERE order_id = #{orderId} AND status != 'CONFIRMED'
+    </select>
+
+    <!-- 任务工作台：列表与计数共用同一套过滤条件，避免 total 与 list 口径不一致 -->
+    <sql id="workbenchFilter">
+        FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        JOIN customer c ON c.id = o.customer_id
+        LEFT JOIN sys_user u ON u.id = t.assignee_id
+        WHERE o.deleted = 0
+        <if test="status != null and status != ''">
+            AND t.status = #{status}
+        </if>
+        <if test="assigneeId != null">
+            AND t.assignee_id = #{assigneeId}
+        </if>
+        <if test="orderId != null">
+            AND t.order_id = #{orderId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (t.name LIKE CONCAT('%', #{keyword}, '%')
+                 OR o.order_no LIKE CONCAT('%', #{keyword}, '%')
+                 OR o.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR c.name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <!-- 逾期：任务未确认、订单未结束、截止日期早于今天 -->
+        <if test="overdue != null and overdue">
+            AND t.deadline IS NOT NULL
+            AND t.deadline &lt; CURDATE()
+            AND t.status != 'CONFIRMED'
+            AND o.status NOT IN ('COMPLETED', 'CANCELLED')
+        </if>
+        <!-- 未分派：assignee_id 为空；不依赖 status，避免历史脏数据漏掉 -->
+        <if test="unassigned != null and unassigned">
+            AND t.assignee_id IS NULL
+        </if>
+        <if test="extended != null and extended">
+            AND EXISTS (SELECT 1 FROM operation_log l
+                        WHERE l.biz_type = 'TASK' AND l.biz_id = t.id
+                          AND l.action = 'TASK_DEADLINE_CHANGED')
+        </if>
+    </sql>
+
+    <select id="selectWorkbench" resultType="map">
+        SELECT t.id              AS `id`,
+               t.order_id        AS `orderId`,
+               o.order_no        AS `orderNo`,
+               o.title           AS `orderTitle`,
+               o.status          AS `orderStatus`,
+               o.deadline        AS `orderDeadline`,
+               c.name            AS `customerName`,
+               t.material_type   AS `materialType`,
+               t.name            AS `name`,
+               t.spec            AS `spec`,
+               t.quantity        AS `quantity`,
+               t.deadline        AS `deadline`,
+               t.status          AS `status`,
+               t.assignee_id     AS `assigneeId`,
+               u.real_name       AS `assigneeName`,
+               t.assigned_at     AS `assignedAt`,
+               t.created_at      AS `createdAt`,
+               t.updated_at      AS `updatedAt`,
+               (SELECT COUNT(*) FROM design_version v WHERE v.task_id = t.id) AS `versionCount`,
+               (SELECT COUNT(*) FROM revision_feedback f WHERE f.task_id = t.id) AS `feedbackCount`
+        <include refid="workbenchFilter"/>
+        ORDER BY FIELD(t.status, 'REVISION', 'PENDING_CONFIRM', 'DESIGNING', 'PENDING', 'CONFIRMED'),
+                 t.deadline IS NULL, t.deadline, t.id
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countWorkbench" resultType="int">
+        SELECT COUNT(*)
+        <include refid="workbenchFilter"/>
+    </select>
+
+    <select id="selectMaxDeadlineByOrderId" resultType="java.time.LocalDate">
+        SELECT MAX(deadline) FROM material_task
+        WHERE order_id = #{orderId}
+    </select>
+
+    <select id="countByOrderAndAssignee" resultType="int">
+        SELECT COUNT(*) FROM material_task
+        WHERE order_id = #{orderId} AND assignee_id = #{assigneeId}
+    </select>
+
+    <!-- 条件更新：只有当前状态等于 from 才写入，返回 0 表示状态已被他人改变 -->
+    <update id="updateStatus">
+        UPDATE material_task SET status = #{to} WHERE id = #{id} AND status = #{from}
+    </update>
+
+    <!-- 只有待分派状态可改派：条件写进 SQL，杜绝"查完就被开始设计"的竞态 -->
+    <update id="updateAssignee">
+        UPDATE material_task SET assignee_id = #{assigneeId}, assigned_at = NOW()
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="updateDeadline">
+        UPDATE material_task SET deadline = #{deadline} WHERE id = #{id}
+    </update>
+
+</mapper>

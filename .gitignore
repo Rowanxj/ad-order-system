@@ -1,0 +1,37 @@
+# --- Java / Maven ---
+backend/target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# --- Node / Vite ---
+frontend/node_modules/
+frontend/dist/
+*.local
+
+# --- 运行时上传的文件 ---
+uploads/
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# --- 日志 ---
+*.log
+logs/
+
+# --- 数据库备份（本地产物） ---
+backups/
+
+# --- 本地环境变量与构建临时目录 ---
+.env
+.build-tmp/
+.build-web/
+
+# --- 本地服务进程号 ---
+*.pid
+
+# --- 课程资料备份（不纳入交付） ---
+.assignment_tmp.md

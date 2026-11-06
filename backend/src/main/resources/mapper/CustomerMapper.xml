@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.adorder.mapper.CustomerMapper">
+
+    <select id="selectList" resultType="com.course.adorder.entity.Customer">
+        SELECT id, name, contact_person, contact_phone, industry, remark, created_by, created_at, deleted
+        FROM customer
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+             OR contact_person LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="selectById" resultType="com.course.adorder.entity.Customer">
+        SELECT id, name, contact_person, contact_phone, industry, remark, created_by, created_at, deleted
+        FROM customer WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO customer (name, contact_person, contact_phone, industry, remark, created_by)
+        VALUES (#{name}, #{contactPerson}, #{contactPhone}, #{industry}, #{remark}, #{createdBy})
+    </insert>
+
+</mapper>

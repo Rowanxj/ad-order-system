@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "note": "留痕动作注册表。代码里 writeLog(...) 的动作码必须全部在此登记；每条登记也必须真的被使用，否则视为死码。",
+  "storage": "operation_log",
+  "fields": {
+    "biz_type": "ORDER / TASK",
+    "action": "动作码，本文件注册的取值",
+    "action_text": "中文短句，与本文 text 一致",
+    "detail": "变更说明，改值类动作必须写成「原值 → 新值」",
+    "operator_id / operator_name / operator_role": "从登录上下文取，禁止前端传入"
+  },
+  "actions": [
+    { "code": "ORDER_CREATED", "biz": "ORDER", "text": "创建订单", "api": "POST /api/orders", "when": "每次登记订单" },
+    { "code": "ORDER_CONFIRMED", "biz": "ORDER", "text": "确认订单", "api": "PUT /api/orders/{id}/confirm", "when": "负责人确认物料清单" },
+    { "code": "ORDER_CANCELLED", "biz": "ORDER", "text": "取消订单", "api": "PUT /api/orders/{id}/cancel", "when": "待确认阶段取消" },
+    { "code": "ORDER_COMPLETED", "biz": "ORDER", "text": "订单交付", "api": "PUT /api/orders/{id}/complete", "when": "全部任务确认后交付" },
+    { "code": "ORDER_DEADLINE_CHANGED", "biz": "ORDER", "text": "变更整体截止日期", "api": "PUT /api/orders/{id}/deadline", "when": "确认后改期，必须写原值→新值", "detailPattern": "原截止日期.*→" },
+    { "code": "TASK_ADDED", "biz": "TASK", "text": "新增物料任务", "api": "POST /api/orders/{id}/tasks", "when": "订单确认后新增物料，必须留痕" },
+    { "code": "TASK_ASSIGNED", "biz": "TASK", "text": "分派任务", "api": "PUT /api/tasks/{id}/assign", "when": "分派或改派" },
+    { "code": "TASK_STARTED", "biz": "TASK", "text": "开始设计", "api": "PUT /api/tasks/{id}/start", "when": "设计人员领取任务" },
+    { "code": "VERSION_UPLOADED", "biz": "TASK", "text": "上传设计版本", "api": "POST /api/tasks/{id}/versions", "when": "每次上传新版本" },
+    { "code": "FEEDBACK_RECORDED", "biz": "TASK", "text": "记录客户修改意见", "api": "POST /api/tasks/{id}/feedbacks", "when": "记录一轮客户意见" },
+    { "code": "TASK_CONFIRMED", "biz": "TASK", "text": "客户确认", "api": "PUT /api/tasks/{id}/confirm", "when": "客户确认当前版本" },
+    { "code": "TASK_DEADLINE_CHANGED", "biz": "TASK", "text": "变更物料截止日期", "api": "PUT /api/tasks/{id}/deadline", "when": "确认后改期，必须写原值→新值", "detailPattern": "原截止日期.*→" }
+  ]
+}

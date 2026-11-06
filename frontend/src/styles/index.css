@@ -1,0 +1,133 @@
+/* ===========================================================================
+   全局设计令牌与基础样式
+   加载顺序：element-plus/dist/index.css 之后（见 main.js），因此这里能覆盖 EP 变量。
+   =========================================================================== */
+
+:root {
+  /* 品牌色：统一覆盖 Element Plus 主色阶，保证按钮 / 链接 / 选中态一致 */
+  --ad-primary: #2563eb;
+  --el-color-primary: #2563eb;
+  --el-color-primary-light-3: #5b8def;
+  --el-color-primary-light-5: #8ab0f5;
+  --el-color-primary-light-7: #b9cdf9;
+  --el-color-primary-light-8: #d0ddfb;
+  --el-color-primary-light-9: #e8eefd;
+  --el-color-primary-dark-2: #1d4fd7;
+
+  /* 中性色与层次 */
+  --ad-bg: #f4f6fb;
+  --ad-surface: #ffffff;
+  --ad-text: #1f2937;
+  --ad-text-secondary: #6b7280;
+  --ad-text-muted: #9ca3af;
+  --ad-border: #e8ecf3;
+
+  --ad-radius: 12px;
+  --ad-radius-sm: 8px;
+  --ad-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 16px rgba(16, 24, 40, .06);
+  --ad-shadow-hover: 0 6px 24px rgba(16, 24, 40, .10);
+  --ad-sidebar: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; margin: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: var(--ad-text);
+  background: var(--ad-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- 页面骨架：每个业务页都用这套结构 ---------- */
+.ad-page { display: flex; flex-direction: column; gap: 16px; }
+
+.ad-card {
+  background: var(--ad-surface);
+  border: 1px solid var(--ad-border);
+  border-radius: var(--ad-radius);
+  box-shadow: var(--ad-shadow);
+  padding: 18px 20px;
+}
+
+.ad-card--flush { padding: 0; overflow: hidden; }
+
+.ad-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.ad-spacer { flex: 1; }
+
+.ad-muted { color: var(--ad-text-secondary); font-size: 13px; }
+
+.ad-mono {
+  font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .2px;
+}
+
+/* ---------- Element Plus 细节收敛 ---------- */
+.el-card {
+  border-radius: var(--ad-radius);
+  border-color: var(--ad-border);
+  box-shadow: var(--ad-shadow);
+}
+
+.el-button { border-radius: var(--ad-radius-sm); font-weight: 500; }
+
+.el-button--primary { box-shadow: 0 2px 8px rgba(37, 99, 235, .18); }
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper { border-radius: var(--ad-radius-sm); }
+
+.el-dialog { border-radius: var(--ad-radius); }
+.el-dialog__header { border-bottom: 1px solid var(--ad-border); margin-right: 0; padding-bottom: 14px; }
+.el-dialog__footer { border-top: 1px solid var(--ad-border); padding-top: 14px; }
+
+.el-tag { border-radius: 6px; font-weight: 500; }
+
+.el-table { --el-table-border-color: var(--ad-border); }
+
+.el-table th.el-table__cell {
+  background: #fafbfd !important;
+  color: #475569;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.el-table td.el-table__cell { padding: 11px 0; }
+
+.el-table__body tr:hover > td.el-table__cell { background: #f8fafc !important; }
+
+.el-empty__description { color: var(--ad-text-muted); }
+
+.el-progress-bar__outer { background: #eef2f7; }
+
+/* 截止日期提醒：琥珀=临近，红=已逾期（规则见 constants.js 的 deadlineMeta） */
+.deadline-warn { color: #b45309; font-weight: 600; cursor: help; }
+.deadline-overdue { color: #dc2626; font-weight: 600; cursor: help; }
+
+/* 抽屉/卡片标题统一 */
+.ad-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ad-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.ad-section-title::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ad-primary);
+}

@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "note": "状态机契约：唯一允许的状态全集与迁移。代码里出现的状态字面量必须全部在此登记。",
+  "entities": {
+    "ORDER": {
+      "name": "物料订单",
+      "table": "material_order",
+      "javaClass": "MaterialOrder",
+      "service": "OrderService",
+      "frontendMap": "ORDER_STATUS",
+      "statusField": "status",
+      "initial": "PENDING_CONFIRM",
+      "statuses": [
+        { "code": "PENDING_CONFIRM", "label": "待确认", "terminal": false },
+        { "code": "IN_PROGRESS", "label": "进行中", "terminal": false },
+        { "code": "COMPLETED", "label": "已交付", "terminal": true },
+        { "code": "CANCELLED", "label": "已取消", "terminal": true }
+      ],
+      "transitions": [
+        {
+          "id": "O1",
+          "from": "PENDING_CONFIRM",
+          "to": "IN_PROGRESS",
+          "trigger": "确认订单",
+          "api": "PUT /api/orders/{id}/confirm",
+          "roles": ["MANAGER"],
+          "guards": ["订单至少含 1 项物料任务"],
+          "audit": "ORDER_CONFIRMED"
+        },
+        {
+          "id": "O2",
+          "from": "PENDING_CONFIRM",
+          "to": "CANCELLED",
+          "trigger": "取消订单",
+          "api": "PUT /api/orders/{id}/cancel",
+          "roles": ["SALES", "MANAGER"],
+          "guards": ["仅待确认状态可取消"],
+          "audit": "ORDER_CANCELLED"
+        },
+        {
+          "id": "O3",
+          "from": "IN_PROGRESS",
+          "to": "COMPLETED",
+          "trigger": "订单交付",
+          "api": "PUT /api/orders/{id}/complete",
+          "roles": ["MANAGER"],
+          "guards": ["订单内全部任务状态均为 CONFIRMED", "任务数大于 0"],
+          "audit": "ORDER_COMPLETED"
+        }
+      ],
+      "forbidden": [
+        { "from": "COMPLETED", "to": "*", "reason": "已交付订单不可再流转" },
+        { "from": "CANCELLED", "to": "*", "reason": "已取消订单不可再流转" },
+        { "from": "IN_PROGRESS", "to": "CANCELLED", "reason": "已开工订单不允许直接取消，需走变更流程" },
+        { "from": "PENDING_CONFIRM", "to": "COMPLETED", "reason": "未确认订单不能跳过进行中直接交付" }
+      ]
+    },
+    "TASK": {
+      "name": "物料任务",
+      "table": "material_task",
+      "javaClass": "MaterialTask",
+      "service": "TaskService",
+      "frontendMap": "TASK_STATUS",
+      "statusField": "status",
+      "initial": "PENDING",
+      "statuses": [
+        { "code": "PENDING", "label": "待分派", "terminal": false },
+        { "code": "DESIGNING", "label": "设计中", "terminal": false },
+        { "code": "PENDING_CONFIRM", "label": "待客户确认", "terminal": false },
+        { "code": "REVISION", "label": "修改中", "terminal": false },
+        { "code": "CONFIRMED", "label": "已确认", "terminal": true }
+      ],
+      "transitions": [
+        {
+          "id": "T1",
+          "from": "PENDING",
+          "to": "DESIGNING",
+          "trigger": "开始设计",
+          "api": "PUT /api/tasks/{id}/start",
+          "roles": ["DESIGNER"],
+          "guards": ["操作人必须是该任务的被分派人"],
+          "audit": "TASK_STARTED"
+        },
+        {
+          "id": "T2",
+          "from": "DESIGNING",
+          "to": "PENDING_CONFIRM",
+          "trigger": "上传设计版本",
+          "api": "POST /api/tasks/{id}/versions",
+          "roles": ["DESIGNER"],
+          "guards": ["操作人必须是该任务的被分派人", "文件类型在白名单内"],
+          "audit": "VERSION_UPLOADED"
+        },
+        {
+          "id": "T3",
+          "from": "REVISION",
+          "to": "PENDING_CONFIRM",
+          "trigger": "修改后重新上传版本",
+          "api": "POST /api/tasks/{id}/versions",
+          "roles": ["DESIGNER"],
+          "guards": ["操作人必须是该任务的被分派人", "版本号在历史最大号上递增"],
+          "audit": "VERSION_UPLOADED"
+        },
+        {
+          "id": "T4",
+          "from": "PENDING_CONFIRM",
+          "to": "REVISION",
+          "trigger": "记录客户修改意见",
+          "api": "POST /api/tasks/{id}/feedbacks",
+          "roles": ["SALES"],
+          "guards": ["仅待客户确认状态可记录意见"],
+          "audit": "FEEDBACK_RECORDED"
+        },
+        {
+          "id": "T5",
+          "from": "PENDING_CONFIRM",
+          "to": "CONFIRMED",
+          "trigger": "记录客户确认",
+          "api": "PUT /api/tasks/{id}/confirm",
+          "roles": ["SALES"],
+          "guards": ["上传设计稿不等于客户确认，只有客户经理能执行"],
+          "audit": "TASK_CONFIRMED"
+        }
+      ],
+      "forbidden": [
+        { "from": "CONFIRMED", "to": "*", "reason": "已确认任务不可再流转，也不可改期" },
+        { "from": "PENDING", "to": "PENDING_CONFIRM", "reason": "未开始设计不能提交版本" },
+        { "from": "DESIGNING", "to": "CONFIRMED", "reason": "必须经过待客户确认环节" }
+      ]
+    }
+  }
+}

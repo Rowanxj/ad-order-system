@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.adorder.mapper.NotificationMapper">
+
+    <select id="countOrdersByStatus" resultType="int">
+        SELECT COUNT(*) FROM material_order
+        WHERE deleted = 0 AND status = #{status}
+    </select>
+
+    <!-- 可交付：进行中，且没有任何未确认的任务（任务数为 0 不算可交付） -->
+    <select id="countDeliverableOrders" resultType="int">
+        SELECT COUNT(*) FROM material_order o
+        WHERE o.deleted = 0 AND o.status = 'IN_PROGRESS'
+          AND EXISTS (SELECT 1 FROM material_task t WHERE t.order_id = o.id)
+          AND NOT EXISTS (
+              SELECT 1 FROM material_task t WHERE t.order_id = o.id AND t.status &lt;&gt; 'CONFIRMED'
+          )
+    </select>
+
+    <select id="countTasksByStatus" resultType="int">
+        SELECT COUNT(*) FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        WHERE t.status = #{status}
+    </select>
+
+    <select id="countUnassignedTasks" resultType="int">
+        SELECT COUNT(*) FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        WHERE t.status = 'PENDING' AND t.assignee_id IS NULL
+    </select>
+
+    <select id="countMyTasksByStatus" resultType="int">
+        SELECT COUNT(*) FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        WHERE t.assignee_id = #{assigneeId} AND t.status = #{status}
+    </select>
+
+    <select id="selectPendingConfirmOrders" resultType="map">
+        SELECT o.id               AS `id`,
+               o.order_no         AS `orderNo`,
+               o.title            AS `title`,
+               o.created_at       AS `createdAt`,
+               c.name             AS `customerName`
+        FROM material_order o
+        JOIN customer c ON c.id = o.customer_id
+        WHERE o.deleted = 0 AND o.status = 'PENDING_CONFIRM'
+        ORDER BY o.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectTasksByStatus" resultType="map">
+        SELECT t.id               AS `id`,
+               t.name             AS `name`,
+               o.id               AS `orderId`,
+               o.order_no         AS `orderNo`,
+               o.title            AS `orderTitle`,
+               t.updated_at       AS `updatedAt`
+        FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        WHERE t.status = #{status}
+        ORDER BY t.updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectMyActiveTasks" resultType="map">
+        SELECT t.id               AS `id`,
+               t.name             AS `name`,
+               t.status           AS `status`,
+               o.id               AS `orderId`,
+               o.order_no         AS `orderNo`,
+               t.updated_at       AS `updatedAt`
+        FROM material_task t
+        JOIN material_order o ON o.id = t.order_id AND o.deleted = 0
+        WHERE t.assignee_id = #{assigneeId}
+          AND t.status IN ('PENDING', 'REVISION', 'DESIGNING', 'PENDING_CONFIRM')
+        ORDER BY FIELD(t.status, 'REVISION', 'PENDING', 'DESIGNING', 'PENDING_CONFIRM'), t.updated_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

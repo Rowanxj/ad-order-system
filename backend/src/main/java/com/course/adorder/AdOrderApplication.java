@@ -1,0 +1,12 @@
+package com.course.adorder;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AdOrderApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(AdOrderApplication.class, args);
+    }
+}

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.adorder.mapper.MaterialOrderMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO material_order (order_no, customer_id, title, description, deadline, status, created_by)
+        VALUES (#{orderNo}, #{customerId}, #{title}, #{description}, #{deadline}, #{status}, #{createdBy})
+    </insert>
+
+    <select id="selectById" resultType="com.course.adorder.entity.MaterialOrder">
+        SELECT id, order_no, customer_id, title, description, deadline, status,
+               created_by, created_at, updated_at, deleted
+        FROM material_order WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="countByOrderNoPrefix" resultType="int">
+        SELECT COUNT(*) FROM material_order WHERE order_no LIKE CONCAT(#{prefix}, '%')
+    </select>
+
+    <!-- 列表与计数共用同一套过滤条件：避免"列表能筛出来、total 却对不上" -->
+    <sql id="listFilter">
+        WHERE o.deleted = 0
+        <if test="status != null and status != ''">
+            AND o.status = #{status}
+        </if>
+        <if test="customerId != null">
+            AND o.customer_id = #{customerId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (o.title LIKE CONCAT('%', #{keyword}, '%') OR o.order_no LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="designerId != null">
+            AND EXISTS (SELECT 1 FROM material_task t WHERE t.order_id = o.id AND t.assignee_id = #{designerId})
+        </if>
+        <if test="deadlineFrom != null">
+            AND o.deadline &gt;= #{deadlineFrom}
+        </if>
+        <if test="deadlineTo != null">
+            AND o.deadline &lt;= #{deadlineTo}
+        </if>
+        <if test="overdue != null and overdue">
+            AND o.deadline &lt; CURDATE() AND o.status IN ('PENDING_CONFIRM', 'IN_PROGRESS')
+        </if>
+        <if test="extended != null and extended">
+            AND o.status IN ('PENDING_CONFIRM', 'IN_PROGRESS')
+            AND EXISTS (SELECT 1 FROM operation_log l
+                        WHERE l.order_id = o.id AND l.action = 'ORDER_DEADLINE_CHANGED')
+        </if>
+        <!-- 设计制作人员只能看到含本人任务的订单：必须在 SQL 层过滤，否则分页与总数都会错 -->
+        <if test="viewerRole == 'DESIGNER'">
+            AND EXISTS (SELECT 1 FROM material_task t WHERE t.order_id = o.id AND t.assignee_id = #{viewerId})
+        </if>
+    </sql>
+
+    <select id="selectList" resultType="map">
+        SELECT o.id               AS `id`,
+               o.order_no         AS `orderNo`,
+               o.title            AS `title`,
+               o.status           AS `status`,
+               o.deadline         AS `deadline`,
+               o.created_at       AS `createdAt`,
+               c.name             AS `customerName`,
+               u.real_name        AS `createdByName`,
+               u.username         AS `createdByAccount`,
+               (SELECT COUNT(*) FROM material_task t WHERE t.order_id = o.id) AS `taskTotal`,
+               (SELECT COUNT(*) FROM material_task t WHERE t.order_id = o.id AND t.status = 'CONFIRMED') AS `taskConfirmed`
+        FROM material_order o
+        JOIN customer c ON c.id = o.customer_id
+        JOIN sys_user u ON u.id = o.created_by
+        <include refid="listFilter"/>
+        ORDER BY o.created_at DESC, o.id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countList" resultType="int">
+        SELECT COUNT(*)
+        FROM material_order o
+        JOIN customer c ON c.id = o.customer_id
+        JOIN sys_user u ON u.id = o.created_by
+        <include refid="listFilter"/>
+    </select>
+
+    <!-- 条件更新：只有当前状态等于 from 才写入，返回 0 表示状态已被他人改变 -->
+    <update id="updateStatus">
+        UPDATE material_order SET status = #{to} WHERE id = #{id} AND status = #{from}
+    </update>
+
+    <update id="updateDeadline">
+        UPDATE material_order SET deadline = #{deadline} WHERE id = #{id}
+    </update>
+
+</mapper>

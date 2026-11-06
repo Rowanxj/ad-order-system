@@ -1,0 +1,42 @@
+server:
+  # 端口可用环境变量覆盖：SERVER_PORT=8080
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ad-order-backend
+  # 本地 .env（已被 .gitignore 排除）优先加载，换电脑只改 .env，不动源码；
+  # 文件不存在时跳过，不影响启动。
+  config:
+    import: optional:file:./.env[.properties],optional:file:../.env[.properties]
+  datasource:
+    url: "${DB_URL:jdbc:mysql://localhost:3306/ad_order_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}"
+    # 口令与密钥一律走环境变量/本地 .env，未设置时才回退到本地演示值；部署时至少覆盖 DB_PASSWORD 与 JWT_SECRET
+    username: "${DB_USERNAME:root}"
+    password: "${DB_PASSWORD:}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.course.adorder.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  # JWT 密钥：生产环境用环境变量 JWT_SECRET 覆盖（默认值仅用于本地演示）
+  jwt-secret: "${JWT_SECRET:adorder-course-project-jwt-secret-key-2026-aipbl}"
+  # 登录有效期（小时），可用 JWT_EXPIRE_HOURS 覆盖
+  jwt-expire-hours: ${JWT_EXPIRE_HOURS:24}
+  # 历史密码格式的固定盐值：SHA-256(salt + 明文)；新密码已改用 PBKDF2 随机盐，此项仅用于兼容旧数据
+  password-salt: "${PASSWORD_SALT:adorder}"
+  # 设计稿上传目录（相对后端运行目录），可用 UPLOAD_DIR 覆盖
+  upload-dir: "${UPLOAD_DIR:./uploads}"
+
+logging:
+  level:
+    # 演示默认 info；排查问题时可临时用 LOG_LEVEL=debug 覆盖
+    com.course.adorder: ${LOG_LEVEL:info}

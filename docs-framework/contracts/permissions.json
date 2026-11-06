@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "note": "权限契约：每条路由声明业务允许的角色与挡在哪一层。guard 取值含义见 references/02-contracts.md。",
+  "roles": {
+    "SALES": "客户经理：对外沟通、登记订单、记客户意见、记客户确认",
+    "MANAGER": "业务负责人：确认订单、分派改派、订单交付",
+    "DESIGNER": "设计制作人员：只处理分派给自己的任务"
+  },
+  "routes": [
+    { "api": "POST /api/auth/login", "roles": [], "guard": "public", "handler": "ApiController#login" },
+    { "api": "GET /api/auth/me", "roles": ["*"], "guard": "login", "handler": "ApiController#me" },
+    { "api": "POST /api/auth/register", "roles": [], "guard": "public", "handler": "ApiController#register", "note": "自助注册只允许 DESIGNER，注册后 status=2 待负责人启用" },
+    { "api": "PUT /api/auth/password", "roles": ["*"], "guard": "login", "handler": "ApiController#changeMyPassword" },
+
+    { "api": "GET /api/customers", "roles": ["SALES", "MANAGER"], "guard": "annotation", "handler": "ApiController#customers" },
+    { "api": "POST /api/customers", "roles": ["SALES"], "guard": "annotation", "handler": "ApiController#createCustomer" },
+
+    { "api": "GET /api/orders", "roles": ["*"], "guard": "login", "handler": "ApiController#orders", "dataScope": "DESIGNER 仅返回含本人任务的订单（SQL 级过滤）" },
+    { "api": "POST /api/orders", "roles": ["SALES"], "guard": "annotation", "handler": "ApiController#createOrder" },
+    { "api": "GET /api/orders/stats", "roles": ["*"], "guard": "login", "handler": "ApiController#orderStats", "dataScope": "设计人员只统计与本人相关的任务" },
+    { "api": "GET /api/orders/{id}", "roles": ["*"], "guard": "service", "handler": "ApiController#orderDetail", "serviceCheck": "OrderService#detail", "dataScope": "DESIGNER 访问无关订单返回 403" },
+    { "api": "PUT /api/orders/{id}/confirm", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#confirmOrder" },
+    { "api": "PUT /api/orders/{id}/cancel", "roles": ["SALES", "MANAGER"], "guard": "annotation", "handler": "ApiController#cancelOrder" },
+    { "api": "PUT /api/orders/{id}/complete", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#completeOrder" },
+    { "api": "PUT /api/orders/{id}/deadline", "roles": ["SALES", "MANAGER"], "guard": "annotation", "handler": "ApiController#updateOrderDeadline" },
+    { "api": "POST /api/orders/{id}/tasks", "roles": ["SALES"], "guard": "annotation", "handler": "ApiController#addTask" },
+
+    { "api": "GET /api/tasks", "roles": ["SALES", "MANAGER"], "guard": "annotation", "handler": "ApiController#listTasks", "dataScope": "客户经理/负责人查看全部任务；支持状态/分派人/订单/关键词/逾期/未分派/已延期筛选与分页" },
+    { "api": "GET /api/tasks/my", "roles": ["*"], "guard": "login", "handler": "ApiController#myTasks", "dataScope": "只返回 assignee_id = 当前用户 的任务" },
+    { "api": "GET /api/tasks/{id}", "roles": ["*"], "guard": "service", "handler": "ApiController#taskDetail", "serviceCheck": "TaskService#detail", "dataScope": "DESIGNER 访问他人任务返回 403" },
+    { "api": "PUT /api/tasks/{id}/assign", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#assignTask" },
+    { "api": "PUT /api/tasks/{id}/start", "roles": ["DESIGNER"], "guard": "service", "handler": "ApiController#startTask", "serviceCheck": "TaskService#requireAssignee" },
+    { "api": "POST /api/tasks/{id}/versions", "roles": ["DESIGNER"], "guard": "service", "handler": "ApiController#uploadVersion", "serviceCheck": "TaskService#requireAssignee" },
+    { "api": "POST /api/tasks/{id}/feedbacks", "roles": ["SALES"], "guard": "annotation", "handler": "ApiController#recordFeedback" },
+    { "api": "PUT /api/tasks/{id}/confirm", "roles": ["SALES"], "guard": "annotation", "handler": "ApiController#confirmTask" },
+    { "api": "PUT /api/tasks/{id}/deadline", "roles": ["SALES", "MANAGER"], "guard": "annotation", "handler": "ApiController#updateTaskDeadline" },
+
+    { "api": "GET /api/users/designers", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#designers" },    { "api": "GET /api/users", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#users" },
+    { "api": "POST /api/users", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#createUser" },
+    { "api": "PUT /api/users/{id}/status", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#changeUserStatus" },
+    { "api": "PUT /api/users/{id}/password", "roles": ["MANAGER"], "guard": "annotation", "handler": "ApiController#resetUserPassword" },
+    { "api": "GET /api/notifications/summary", "roles": ["*"], "guard": "login", "handler": "ApiController#notificationSummary", "dataScope": "内容按当前用户角色计算" },
+    { "api": "GET /api/files/**", "roles": ["*"], "guard": "login", "handler": "ApiController#file", "dataScope": "路径来自数据库；设计人员只能下载自己任务的设计稿，服务层做目录穿越与归属校验" }
+  ]
+}

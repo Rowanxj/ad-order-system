@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.adorder.mapper.RevisionFeedbackMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO revision_feedback (task_id, round_no, content, recorded_by)
+        VALUES (#{taskId}, #{roundNo}, #{content}, #{recordedBy})
+    </insert>
+
+    <select id="selectByTaskId" resultType="map">
+        SELECT f.id            AS `id`,
+               f.task_id       AS `taskId`,
+               f.round_no      AS `roundNo`,
+               f.content       AS `content`,
+               f.recorded_at   AS `recordedAt`,
+               u.real_name     AS `recordedByName`
+        FROM revision_feedback f
+        LEFT JOIN sys_user u ON u.id = f.recorded_by
+        WHERE f.task_id = #{taskId}
+        ORDER BY f.round_no
+    </select>
+
+    <select id="selectMaxRoundNo" resultType="java.lang.Integer">
+        SELECT MAX(round_no) FROM revision_feedback WHERE task_id = #{taskId}
+    </select>
+
+</mapper>
